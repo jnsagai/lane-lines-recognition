@@ -4,29 +4,40 @@ Created on Sat Aug  1 22:00:29 2020
 @author: Jefferson Nascimento
 """
 
-#importing some useful packages
-import matplotlib.pyplot as plt
+# Importing some useful packages
 import numpy as np
 import cv2
+
+# Import everything needed to edit/save/watch video clips
+from moviepy.editor import VideoFileClip
+from IPython.display import HTML
 
 ##############################################################################
 #########################   GLOBAL PARAMETERS    #############################
 ##############################################################################
 
-# Test image
-test_image = 'test_images\solidWhiteRight.jpg'
+# Test Video
+test_video_input = 'test_videos/solidWhiteRight.mp4'
+
+# Video Output
+video_output = 'test_videos_output/solidWhiteRight.mp4'
 
 # Canny parameters
 canny_low_threshold = 50
-canny_high_threshold = 150
+canny_high_threshold = 200
 
 # Define the Hough transform parameters
 ρ = 1                   # distance resolution in pixels of the Hough grid
 θ = np.pi/180           # angular resolution in radians of the Hough grid
-threshold = 10          # minimum number of votes (intersections in Hough grid cell)
-min_line_lenght = 40    # minimum number of pixels making up a line
+threshold = 20          # minimum number of votes (intersections in Hough grid cell)
+min_line_lenght = 15    # minimum number of pixels making up a line
 max_line_gap = 5        # maximum gap in pixels between connectable line segments
 
+# Define min and max slope per line side
+left_min_slope = -0.82
+left_max_slope = -0.65
+right_min_slope = 0.55
+right_max_slope = 0.7
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -129,6 +140,7 @@ def calc_coordinates(img, line_parameters, top_coord_line):
     -------
     Array [x1,y1,x2,y2] 
     """
+   
     m, b = line_parameters
     # Get the height of the image as y1 (Remember that the image origin is on the top left corner)
     y1 = img.shape[0]
@@ -140,7 +152,7 @@ def calc_coordinates(img, line_parameters, top_coord_line):
     
     return np.array([x1, y1, x2, y2])
 
-def average_side_lines(img, lines, top_coord_line):
+def average_side_lines(img, lines, top_coord_line, center_line):
     """    
     Parameters
     ----------
@@ -150,6 +162,8 @@ def average_side_lines(img, lines, top_coord_line):
         array of lines.
     top_coord_line : int32.
         line top coordinate ( y2 )
+    center_line : int32.
+        line used to separate right and left lines
 
     Returns
     -------
@@ -169,20 +183,27 @@ def average_side_lines(img, lines, top_coord_line):
         intercept = parameters[1]
         # Check whether it is a right side or left side line and store it
         # in the right list
-        if slope < 0:
-            # print('Left Lines: ', line)      
+        if (slope >= left_min_slope and slope <= left_max_slope) and (x1 < center_line and x2 < center_line):
             left_avg_line.append((slope, intercept))
-        else:
-            # print('Right Lines: ', line)  
+        elif (slope >= right_min_slope and slope <= right_max_slope) and (x1 > center_line and x2 > center_line):
             right_avg_line.append((slope, intercept))
+        
+        print(slope)
 
-    # Calculate the average value of the lines in the list with respect
-    # to the vertical axis
-    left_fit_average = np.average(left_avg_line, axis=0)
-    right_fit_average = np.average(right_avg_line, axis=0)
     
-    left_line = calc_coordinates(img, left_fit_average, top_coord_line)
-    right_line = calc_coordinates(img, right_fit_average, top_coord_line)
+    # Calculate the average value of the lines in the list with respect
+    # to the vertical axis. Then calculate the coordinates for a fit line
+    left_line = np.zeros(4, dtype=int)
+    right_line = np.zeros(4, dtype=int)
+    
+    # Check whether there are lines on each side
+    if left_avg_line:        
+        left_fit_average = np.average(left_avg_line, axis=0)
+        left_line = calc_coordinates(img, left_fit_average, top_coord_line)
+    
+    if right_avg_line:
+        right_fit_average = np.average(right_avg_line, axis=0)
+        right_line = calc_coordinates(img, right_fit_average, top_coord_line)
     
     return np.array([left_line, right_line])
 
@@ -204,57 +225,80 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
 ##############################################################################
 ##############################   MAIN CODE   #################################
 ##############################################################################
+
+def process_image(image):
+    # Load the test image
+    # img = cv2.imread(image, 1)
     
-# Load the test image
-image = cv2.imread(test_image)
+    # Make a copy of the original image in order to not modify it
+    lane_image =  np.copy(image)
+    
+    # Apply the gray scale conversion at the image
+    gray_image = grayscale(lane_image)
+    
+    # Define a kernel size and apply Gaussian Smoothing
+    kernel_size = 5
+    blur_gray = gaussian_blur(gray_image, kernel_size)
+    
+    # Apply Canny algorithm
+    canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
+    
+    # Create a masked edges
+    # Define a four sided polygon to mask
+    #      _____
+    #     /     \
+    #    /       \
+    #   /         \
+    #  /           \
+    # /_____________\
+    #
+    imshape = image.shape
+    # Define vertices coordinates
+    ver_1_x = 50
+    ver_1_y = imshape[0]
+    ver_2_x = 420
+    ver_2_y = 330
+    ver_3_x = 540
+    ver_3_y = ver_2_y
+    ver_4_x = imshape[1] - 50
+    ver_4_y = imshape[0]
+    
+    # Define the center line x coordinate used for separate right lines from left lines
+    # In this case it is placed in the center of the polygon
+    center_line_coord = ver_2_x + ((ver_3_x - ver_2_x) / 2)
+    
+    vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y), (ver_4_x, ver_4_y)]], dtype=np.int32)
+    masked_edges = region_of_interest(canny_image, vertices)
+    
+    # Identify the lines in the image through Hough Transform algorithm
+    # Output lines is an array containing endpoints of detected line segments
+    lines = hough_lines(masked_edges, ρ, θ, threshold, min_line_lenght, max_line_gap)
+    
+    # Instead of showing all the lines in the right and left side
+    # it is better to show just an average of the lines
+    average_lines = average_side_lines(lane_image, lines, ver_2_y, center_line_coord)
+    
+    # Get a image with the detected lines
+    line_image = draw_lines(lane_image, average_lines)
+    
+    # Draw the lines on the original image
+    combo_image = weighted_img(line_image, lane_image)
+    
+    return combo_image
 
-# Make a copy of the original image in order to not modify it
-lane_image =  np.copy(image)
+#clip1 = VideoFileClip(test_video_input).subclip(0,5)
+clip1 = VideoFileClip(test_video_input)
+white_clip = clip1.fl_image(process_image)
+white_clip.write_videofile(video_output, audio=False)
 
-# Apply the gray scale conversion at the image
-gray_image = grayscale(lane_image)
+# cap = cv2.VideoCapture(test_video_input)
 
-# Define a kernel size and apply Gaussian Smoothing
-kernel_size = 5
-blur_gray = gaussian_blur(gray_image, kernel_size)
+# while(cap.isOpened()):
+#     _, frame = cap.read()
+#     result = process_image(frame)
+#     cv2.imshow('result', result)
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
 
-# Apply Canny algorithm
-canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
-
-# Create a masked edges
-# Define a four sided polygon to mask
-#      _____
-#     /     \
-#    /       \
-#   /         \
-#  /           \
-# /_____________\
-#
-imshape = image.shape
-# Define vertices coordinates
-ver_1_x = 50
-ver_1_y = imshape[0]
-ver_2_x = 400
-ver_2_y = 350
-ver_3_x = 560
-ver_3_y = ver_2_y
-ver_4_x = imshape[1] - 50
-ver_4_y = imshape[0]
-vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y), (ver_4_x, ver_4_y)]], dtype=np.int32)
-masked_edges = region_of_interest(canny_image, vertices)
-
-# Identify the lines in the image through Hough Transform algorithm
-# Output lines is an array containing endpoints of detected line segments
-lines = hough_lines(masked_edges, ρ, θ, threshold, min_line_lenght, max_line_gap)
-
-# Instead of showing all the lines in the right and left side
-# it is better to show just an average of the lines
-average_lines = average_side_lines(lane_image, lines, ver_2_y)
-
-# Get a image with the detected lines
-line_image = draw_lines(lane_image, average_lines)
-
-# Draw the lines on the original image
-combo_image = weighted_img(line_image, lane_image)
-
-plt.imshow(combo_image)
+# cap.release()
+# cv2.destroyAllWindows()
