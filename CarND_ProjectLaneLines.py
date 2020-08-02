@@ -12,8 +12,23 @@ import math
 import cv2
 
 ##############################################################################
-#####################   GLOBAL PARAMETERS    #################################
+#########################   GLOBAL PARAMETERS    #############################
 ##############################################################################
+
+# Test image
+test_image = 'test_images\solidWhiteRight.jpg'
+
+# Canny parameters
+canny_low_threshold = 50
+canny_high_threshold = 150
+
+# Define the Hough transform parameters
+ρ = 1                   # distance resolution in pixels of the Hough grid
+θ = np.pi/180           # angular resolution in radians of the Hough grid
+threshold = 10          # minimum number of votes (intersections in Hough grid cell)
+min_line_lenght = 40    # minimum number of pixels making up a line
+max_line_gap = 5        # maximum gap in pixels between connectable line segments
+
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -157,9 +172,10 @@ def average_side_lines(img, lines, top_coord_line):
         # Check whether it is a right side or left side line and store it
         # in the right list
         if slope < 0:
+            print('Left Lines: ', line)      
             left_avg_line.append((slope, intercept))
         else:
-            print(line)
+            print('Right Lines: ', line)  
             right_avg_line.append((slope, intercept))
 
     # Calculate the average value of the lines in the list with respect
@@ -192,7 +208,7 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
 ##############################################################################
     
 # Load the test image
-image = cv2.imread('test_images\solidWhiteRight.jpg')
+image = cv2.imread(test_image)
 
 # Make a copy of the original image in order to not modify it
 lane_image =  np.copy(image)
@@ -204,9 +220,7 @@ gray_image = grayscale(lane_image)
 kernel_size = 5
 blur_gray = gaussian_blur(gray_image, kernel_size)
 
-# Define the low and high threshold for Canny and apply
-canny_low_threshold = 50
-canny_high_threshold = 150
+# Apply Canny algorithm
 canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
 
 # Create a masked edges
@@ -232,14 +246,6 @@ vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y)
 masked_edges = region_of_interest(canny_image, vertices)
 
 # Identify the lines in the image through Hough Transform algorithm
-# Define the Hough transform parameters
-ρ = 1                   # distance resolution in pixels of the Hough grid
-θ = np.pi/180           # angular resolution in radians of the Hough grid
-threshold = 10           # minimum number of votes (intersections in Hough grid cell)
-min_line_lenght = 15    # minimum number of pixels making up a line
-max_line_gap = 5       # maximum gap in pixels between connectable line segments
-
-# Run Hough algorithm on edge detected image
 # Output lines is an array containing endpoints of detected line segments
 lines = hough_lines(masked_edges, ρ, θ, threshold, min_line_lenght, max_line_gap)
 
