@@ -17,14 +17,14 @@ from IPython.display import HTML
 ##############################################################################
 
 # Test Video
-test_video_input = 'test_videos/solidWhiteRight.mp4'
+test_video_input = 'test_videos/challenge.mp4'
 
 # Video Output
 video_output = 'test_videos_output/solidWhiteRight.mp4'
 
 # Canny parameters
 canny_low_threshold = 50
-canny_high_threshold = 200
+canny_high_threshold = 150
 
 # Define the Hough transform parameters
 ρ = 1                   # distance resolution in pixels of the Hough grid
@@ -186,11 +186,8 @@ def average_side_lines(img, lines, top_coord_line, center_line):
         if (slope >= left_min_slope and slope <= left_max_slope) and (x1 < center_line and x2 < center_line):
             left_avg_line.append((slope, intercept))
         elif (slope >= right_min_slope and slope <= right_max_slope) and (x1 > center_line and x2 > center_line):
-            right_avg_line.append((slope, intercept))
-        
-        print(slope)
-
-    
+            right_avg_line.append((slope, intercept))        
+   
     # Calculate the average value of the lines in the list with respect
     # to the vertical axis. Then calculate the coordinates for a fit line
     left_line = np.zeros(4, dtype=int)
@@ -222,6 +219,21 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
     """
     return cv2.addWeighted(initial_img, α, img, β, γ)
 
+def apply_brightness_and_contrast(image, α, β):    
+    
+    new_image = cv2.convertScaleAbs(image, alpha=α, beta=β)
+        
+    return new_image
+
+def gamma_correction(image, γ):
+    lookUpTable = np.empty((1,256), np.uint8)
+    
+    for i in range(256):
+        lookUpTable[0,i] = np.clip(pow(i / 255.0, γ) * 255.0, 0, 255)
+    
+    new_image = cv2.LUT(image, lookUpTable)
+    return new_image
+
 ##############################################################################
 ##############################   MAIN CODE   #################################
 ##############################################################################
@@ -240,8 +252,10 @@ def process_image(image):
     kernel_size = 5
     blur_gray = gaussian_blur(gray_image, kernel_size)
     
+    thresh = cv2.threshold(blur_gray, 130, 255, cv2.THRESH_BINARY)[1]
+    
     # Apply Canny algorithm
-    canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
+    canny_image = canny(thresh, canny_low_threshold, canny_high_threshold)
     
     # Create a masked edges
     # Define a four sided polygon to mask
@@ -286,8 +300,8 @@ def process_image(image):
     
     return combo_image
 
-#clip1 = VideoFileClip(test_video_input).subclip(0,5)
-clip1 = VideoFileClip(test_video_input)
+clip1 = VideoFileClip(test_video_input).subclip(0,5)
+#clip1 = VideoFileClip(test_video_input)
 white_clip = clip1.fl_image(process_image)
 white_clip.write_videofile(video_output, audio=False)
 

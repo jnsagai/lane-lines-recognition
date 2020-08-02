@@ -14,7 +14,7 @@ import cv2
 ##############################################################################
 
 # Test image
-test_image = 'test_images\solidWhiteRight.jpg'
+test_image = 'test_images\whiteCarLaneSwitch.jpg'
 
 # Canny parameters
 canny_low_threshold = 50
@@ -24,7 +24,7 @@ canny_high_threshold = 150
 ρ = 1                   # distance resolution in pixels of the Hough grid
 θ = np.pi/180           # angular resolution in radians of the Hough grid
 threshold = 10          # minimum number of votes (intersections in Hough grid cell)
-min_line_lenght = 40    # minimum number of pixels making up a line
+min_line_lenght = 20    # minimum number of pixels making up a line
 max_line_gap = 5        # maximum gap in pixels between connectable line segments
 
 
@@ -201,6 +201,20 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
     """
     return cv2.addWeighted(initial_img, α, img, β, γ)
 
+def apply_brightness_and_contrast(image, α, β):    
+    
+    new_image = cv2.convertScaleAbs(image, alpha=α, beta=β)
+        
+    return new_image
+
+def gamma_correction(image, γ):
+    lookUpTable = np.empty((1,256), np.uint8)
+    
+    for i in range(256):
+        lookUpTable[0,i] = np.clip(pow(i / 255.0, γ) * 255.0, 0, 255)
+    
+    new_image = cv2.LUT(image, lookUpTable)
+    return new_image
 ##############################################################################
 ##############################   MAIN CODE   #################################
 ##############################################################################
@@ -211,12 +225,23 @@ image = cv2.imread(test_image)
 # Make a copy of the original image in order to not modify it
 lane_image =  np.copy(image)
 
+#c_image = apply_brightness_and_contrast(lane_image, 0.8, 10)
+
+c_image = gamma_correction(lane_image, 4)
+
+# cv2.imshow('New Image', c_image)
+
+# cv2.waitKey()
+# Wait until user press some key
+
 # Apply the gray scale conversion at the image
-gray_image = grayscale(lane_image)
+gray_image = grayscale(c_image)
 
 # Define a kernel size and apply Gaussian Smoothing
-kernel_size = 5
+kernel_size = 11
 blur_gray = gaussian_blur(gray_image, kernel_size)
+
+thresh = cv2.threshold(blur_gray, 200, 255, cv2.THRESH_BINARY)[1]
 
 # Apply Canny algorithm
 canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
@@ -232,14 +257,14 @@ canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
 #
 imshape = image.shape
 # Define vertices coordinates
-ver_1_x = 50
-ver_1_y = imshape[0]
-ver_2_x = 400
-ver_2_y = 350
-ver_3_x = 560
-ver_3_y = ver_2_y
-ver_4_x = imshape[1] - 50
-ver_4_y = imshape[0]
+ver_1_x = int((imshape[1] / 14))
+ver_1_y = int(imshape[0])
+ver_2_x = int((imshape[1] / 2) - (imshape[1] / 14))
+ver_2_y = int((imshape[0] * 3) / 5)
+ver_3_x = int((imshape[1] / 2) + (imshape[1] / 14))
+ver_3_y = int(ver_2_y)
+ver_4_x = int(imshape[1] - (imshape[1] / 14))
+ver_4_y = int(imshape[0])
 vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y), (ver_4_x, ver_4_y)]], dtype=np.int32)
 masked_edges = region_of_interest(canny_image, vertices)
 
@@ -257,4 +282,6 @@ line_image = draw_lines(lane_image, average_lines)
 # Draw the lines on the original image
 combo_image = weighted_img(line_image, lane_image)
 
+#cv2.imshow('result', canny_image)
 plt.imshow(combo_image)
+#plt.imshow(masked_edges, cmap='gray')
