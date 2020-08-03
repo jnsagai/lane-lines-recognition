@@ -34,7 +34,7 @@ canny_high_threshold = 150
 ρ = 1                   # distance resolution in pixels of the Hough grid
 θ = np.pi/180           # angular resolution in radians of the Hough grid
 threshold = 20          # minimum number of votes (intersections in Hough grid cell)
-min_line_lenght = 15     # minimum number of pixels making up a line
+min_line_lenght = 15    # minimum number of pixels making up a line
 max_line_gap = 3        # maximum gap in pixels between connectable line segments
 
 # Define min and max slope per line side
@@ -225,8 +225,7 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
 
 def apply_brightness_and_contrast(image, α, β):    
     
-    new_image = cv2.convertScaleAbs(image, alpha=α, beta=β)
-        
+    new_image = cv2.convertScaleAbs(image, alpha=α, beta=β)        
     return new_image
 
 def gamma_correction(image, γ):
@@ -243,8 +242,6 @@ def gamma_correction(image, γ):
 ##############################################################################
 
 def process_image(image):
-    # Load the test image
-    # img = cv2.imread(image, 1)
     
     # Make a copy of the original image in order to not modify it
     lane_image =  np.copy(image)
@@ -256,10 +253,8 @@ def process_image(image):
     
     # Define a kernel size and apply Gaussian Smoothing
     kernel_size = 3
-    blur_gray = gaussian_blur(gray_image, kernel_size)
-    
-    #thresh = cv2.threshold(blur_gray, 130, 255, cv2.THRESH_BINARY)[1]
-    
+    blur_gray = gaussian_blur(gray_image, kernel_size)    
+  
     # Apply Canny algorithm
     canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
     
@@ -306,7 +301,6 @@ def process_image(image):
     
     return combo_image
 
-#clip1 = VideoFileClip(test_video_input).subclip(0,5)
 clip1 = VideoFileClip(test_video_input_challenge)
 white_clip = clip1.fl_image(process_image)
 white_clip.write_videofile(video_output_challenge, audio=False)
@@ -318,15 +312,3 @@ white_clip.write_videofile(video_output_solid_white, audio=False)
 clip1 = VideoFileClip(test_video_input_solid_yellow)
 white_clip = clip1.fl_image(process_image)
 white_clip.write_videofile(video_output_solid_yellow, audio=False)
-
-# cap = cv2.VideoCapture(test_video_input)
-
-# while(cap.isOpened()):
-#     _, frame = cap.read()
-#     result = process_image(frame)
-#     cv2.imshow('result', result)
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()

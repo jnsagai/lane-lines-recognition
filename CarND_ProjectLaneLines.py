@@ -23,10 +23,20 @@ canny_high_threshold = 150
 # Define the Hough transform parameters
 ρ = 1                   # distance resolution in pixels of the Hough grid
 θ = np.pi/180           # angular resolution in radians of the Hough grid
-threshold = 10          # minimum number of votes (intersections in Hough grid cell)
-min_line_lenght = 20    # minimum number of pixels making up a line
-max_line_gap = 5        # maximum gap in pixels between connectable line segments
+threshold = 40          # minimum number of votes (intersections in Hough grid cell)
+min_line_lenght = 15    # minimum number of pixels making up a line
+max_line_gap = 3        # maximum gap in pixels between connectable line segments
 
+# Define min and max slope per line side
+# left_min_slope = -0.84
+# left_max_slope = -0.64
+# right_min_slope = 0.53
+# right_max_slope = 0.72
+
+left_min_slope = -0.84
+left_max_slope = -0.48
+right_min_slope = 0.53
+right_max_slope = 0.8
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -140,7 +150,7 @@ def calc_coordinates(img, line_parameters, top_coord_line):
     
     return np.array([x1, y1, x2, y2])
 
-def average_side_lines(img, lines, top_coord_line):
+def average_side_lines(img, lines, top_coord_line, center_line):
     """    
     Parameters
     ----------
@@ -150,6 +160,8 @@ def average_side_lines(img, lines, top_coord_line):
         array of lines.
     top_coord_line : int32.
         line top coordinate ( y2 )
+    center_line : int32.
+        line used to separate right and left lines
 
     Returns
     -------
@@ -169,20 +181,25 @@ def average_side_lines(img, lines, top_coord_line):
         intercept = parameters[1]
         # Check whether it is a right side or left side line and store it
         # in the right list
-        if slope < 0:
-            # print('Left Lines: ', line)      
+        print(slope)
+        if (slope >= left_min_slope and slope <= left_max_slope) and (x1 < center_line and x2 < center_line):
             left_avg_line.append((slope, intercept))
-        else:
-            # print('Right Lines: ', line)  
-            right_avg_line.append((slope, intercept))
-
+        elif (slope >= right_min_slope and slope <= right_max_slope) and (x1 > center_line and x2 > center_line):
+            right_avg_line.append((slope, intercept))   
+   
     # Calculate the average value of the lines in the list with respect
-    # to the vertical axis
-    left_fit_average = np.average(left_avg_line, axis=0)
-    right_fit_average = np.average(right_avg_line, axis=0)
+    # to the vertical axis. Then calculate the coordinates for a fit line
+    left_line = np.zeros(4, dtype=int)
+    right_line = np.zeros(4, dtype=int)
     
-    left_line = calc_coordinates(img, left_fit_average, top_coord_line)
-    right_line = calc_coordinates(img, right_fit_average, top_coord_line)
+    # Check whether there are lines on each side
+    if left_avg_line:        
+        left_fit_average = np.average(left_avg_line, axis=0)
+        left_line = calc_coordinates(img, left_fit_average, top_coord_line)
+    
+    if right_avg_line:
+        right_fit_average = np.average(right_avg_line, axis=0)
+        right_line = calc_coordinates(img, right_fit_average, top_coord_line)
     
     return np.array([left_line, right_line])
 
@@ -203,8 +220,7 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
 
 def apply_brightness_and_contrast(image, α, β):    
     
-    new_image = cv2.convertScaleAbs(image, alpha=α, beta=β)
-        
+    new_image = cv2.convertScaleAbs(image, alpha=α, beta=β)        
     return new_image
 
 def gamma_correction(image, γ):
@@ -220,28 +236,21 @@ def gamma_correction(image, γ):
 ##############################################################################
     
 # Load the test image
-image = cv2.imread(test_image)
+image = plt.imread(test_image)
 
 # Make a copy of the original image in order to not modify it
 lane_image =  np.copy(image)
 
 #c_image = apply_brightness_and_contrast(lane_image, 0.8, 10)
 
-c_image = gamma_correction(lane_image, 4)
-
-# cv2.imshow('New Image', c_image)
-
-# cv2.waitKey()
-# Wait until user press some key
+c_image = gamma_correction(lane_image, 2)
 
 # Apply the gray scale conversion at the image
 gray_image = grayscale(c_image)
 
 # Define a kernel size and apply Gaussian Smoothing
-kernel_size = 11
+kernel_size = 5
 blur_gray = gaussian_blur(gray_image, kernel_size)
-
-#thresh = cv2.threshold(blur_gray, 200, 255, cv2.THRESH_BINARY)[1]
 
 # Apply Canny algorithm
 canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
@@ -259,12 +268,17 @@ imshape = image.shape
 # Define vertices coordinates
 ver_1_x = int((imshape[1] / 14))
 ver_1_y = int(imshape[0])
-ver_2_x = int((imshape[1] / 2) - (imshape[1] / 14))
-ver_2_y = int((imshape[0] * 3) / 5)
-ver_3_x = int((imshape[1] / 2) + (imshape[1] / 14))
+ver_2_x = int((imshape[1] / 2) - (imshape[1] / 8))
+ver_2_y = int((imshape[0] * 5) / 8)
+ver_3_x = int((imshape[1] / 2) + (imshape[1] / 8))
 ver_3_y = int(ver_2_y)
 ver_4_x = int(imshape[1] - (imshape[1] / 14))
 ver_4_y = int(imshape[0])
+
+# Define the center line x coordinate used for separate right lines from left lines
+# In this case it is placed in the center of the polygon
+center_line_coord = ver_2_x + ((ver_3_x - ver_2_x) / 2)
+    
 vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y), (ver_4_x, ver_4_y)]], dtype=np.int32)
 masked_edges = region_of_interest(canny_image, vertices)
 
@@ -274,7 +288,7 @@ lines = hough_lines(masked_edges, ρ, θ, threshold, min_line_lenght, max_line_g
 
 # Instead of showing all the lines in the right and left side
 # it is better to show just an average of the lines
-average_lines = average_side_lines(lane_image, lines, ver_2_y)
+average_lines = average_side_lines(lane_image, lines, ver_2_y, center_line_coord)
 
 # Get a image with the detected lines
 line_image = draw_lines(lane_image, average_lines)
