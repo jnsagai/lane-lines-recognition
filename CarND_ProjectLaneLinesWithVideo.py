@@ -16,11 +16,15 @@ from IPython.display import HTML
 #########################   GLOBAL PARAMETERS    #############################
 ##############################################################################
 
-# Test Video
-test_video_input = 'test_videos/challenge.mp4'
+# Test Videos
+test_video_input_challenge = 'test_videos/challenge.mp4'
+test_video_input_solid_white = 'test_videos/solidWhiteRight.mp4'
+test_video_input_solid_yellow = 'test_videos/solidYellowLeft.mp4'
 
 # Video Output
-video_output = 'test_videos_output/solidWhiteRight.mp4'
+video_output_challenge = 'test_videos_output/challenge.mp4'
+video_output_solid_white = 'test_videos_output/solidWhiteRight.mp4'
+video_output_solid_yellow = 'test_videos_output/solidYellowLeft.mp4'
 
 # Canny parameters
 canny_low_threshold = 50
@@ -30,14 +34,14 @@ canny_high_threshold = 150
 ρ = 1                   # distance resolution in pixels of the Hough grid
 θ = np.pi/180           # angular resolution in radians of the Hough grid
 threshold = 20          # minimum number of votes (intersections in Hough grid cell)
-min_line_lenght = 15    # minimum number of pixels making up a line
-max_line_gap = 5        # maximum gap in pixels between connectable line segments
+min_line_lenght = 15     # minimum number of pixels making up a line
+max_line_gap = 3        # maximum gap in pixels between connectable line segments
 
 # Define min and max slope per line side
-left_min_slope = -0.82
-left_max_slope = -0.65
-right_min_slope = 0.55
-right_max_slope = 0.7
+left_min_slope = -0.84
+left_max_slope = -0.64
+right_min_slope = 0.53
+right_max_slope = 0.72
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -245,17 +249,19 @@ def process_image(image):
     # Make a copy of the original image in order to not modify it
     lane_image =  np.copy(image)
     
+    gamma_image = gamma_correction(lane_image, 3)
+    
     # Apply the gray scale conversion at the image
-    gray_image = grayscale(lane_image)
+    gray_image = grayscale(gamma_image)
     
     # Define a kernel size and apply Gaussian Smoothing
-    kernel_size = 5
+    kernel_size = 3
     blur_gray = gaussian_blur(gray_image, kernel_size)
     
-    thresh = cv2.threshold(blur_gray, 130, 255, cv2.THRESH_BINARY)[1]
+    #thresh = cv2.threshold(blur_gray, 130, 255, cv2.THRESH_BINARY)[1]
     
     # Apply Canny algorithm
-    canny_image = canny(thresh, canny_low_threshold, canny_high_threshold)
+    canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
     
     # Create a masked edges
     # Define a four sided polygon to mask
@@ -268,14 +274,14 @@ def process_image(image):
     #
     imshape = image.shape
     # Define vertices coordinates
-    ver_1_x = 50
-    ver_1_y = imshape[0]
-    ver_2_x = 420
-    ver_2_y = 330
-    ver_3_x = 540
-    ver_3_y = ver_2_y
-    ver_4_x = imshape[1] - 50
-    ver_4_y = imshape[0]
+    ver_1_x = int((imshape[1] / 14))
+    ver_1_y = int(imshape[0])
+    ver_2_x = int((imshape[1] / 2) - (imshape[1] / 8))
+    ver_2_y = int((imshape[0] * 5) / 8)
+    ver_3_x = int((imshape[1] / 2) + (imshape[1] / 8))
+    ver_3_y = int(ver_2_y)
+    ver_4_x = int(imshape[1] - (imshape[1] / 14))
+    ver_4_y = int(imshape[0])
     
     # Define the center line x coordinate used for separate right lines from left lines
     # In this case it is placed in the center of the polygon
@@ -300,10 +306,18 @@ def process_image(image):
     
     return combo_image
 
-clip1 = VideoFileClip(test_video_input).subclip(0,5)
-#clip1 = VideoFileClip(test_video_input)
+#clip1 = VideoFileClip(test_video_input).subclip(0,5)
+clip1 = VideoFileClip(test_video_input_challenge)
 white_clip = clip1.fl_image(process_image)
-white_clip.write_videofile(video_output, audio=False)
+white_clip.write_videofile(video_output_challenge, audio=False)
+
+clip1 = VideoFileClip(test_video_input_solid_white)
+white_clip = clip1.fl_image(process_image)
+white_clip.write_videofile(video_output_solid_white, audio=False)
+
+clip1 = VideoFileClip(test_video_input_solid_yellow)
+white_clip = clip1.fl_image(process_image)
+white_clip.write_videofile(video_output_solid_yellow, audio=False)
 
 # cap = cv2.VideoCapture(test_video_input)
 

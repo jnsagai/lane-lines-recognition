@@ -14,7 +14,7 @@ import cv2
 ##############################################################################
 
 # Test image
-test_image = 'test_images\whiteCarLaneSwitch.jpg'
+test_image = 'test_images\challenge_Moment.jpg'
 
 # Canny parameters
 canny_low_threshold = 50
@@ -241,7 +241,7 @@ gray_image = grayscale(c_image)
 kernel_size = 11
 blur_gray = gaussian_blur(gray_image, kernel_size)
 
-thresh = cv2.threshold(blur_gray, 200, 255, cv2.THRESH_BINARY)[1]
+#thresh = cv2.threshold(blur_gray, 200, 255, cv2.THRESH_BINARY)[1]
 
 # Apply Canny algorithm
 canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
