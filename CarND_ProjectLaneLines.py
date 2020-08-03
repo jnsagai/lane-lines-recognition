@@ -8,13 +8,15 @@ Created on Sat Aug  1 22:00:29 2020
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+import os
 
 ##############################################################################
 #########################   GLOBAL PARAMETERS    #############################
 ##############################################################################
 
-# Test image
-test_image = 'test_images\challenge_Moment.jpg'
+# Images directories
+test_image_dir = 'test_images/'
+test_image_output = 'test_images_output/'
 
 # Canny parameters
 canny_low_threshold = 50
@@ -26,12 +28,6 @@ canny_high_threshold = 150
 threshold = 40          # minimum number of votes (intersections in Hough grid cell)
 min_line_lenght = 15    # minimum number of pixels making up a line
 max_line_gap = 3        # maximum gap in pixels between connectable line segments
-
-# Define min and max slope per line side
-# left_min_slope = -0.84
-# left_max_slope = -0.64
-# right_min_slope = 0.53
-# right_max_slope = 0.72
 
 left_min_slope = -0.84
 left_max_slope = -0.48
@@ -234,68 +230,71 @@ def gamma_correction(image, γ):
 ##############################################################################
 ##############################   MAIN CODE   #################################
 ##############################################################################
+
+def lane_recognition(test_image, output_dir):
+    # Load the test image
+    image = plt.imread(test_image)
     
-# Load the test image
-image = plt.imread(test_image)
-
-# Make a copy of the original image in order to not modify it
-lane_image =  np.copy(image)
-
-#c_image = apply_brightness_and_contrast(lane_image, 0.8, 10)
-
-c_image = gamma_correction(lane_image, 2)
-
-# Apply the gray scale conversion at the image
-gray_image = grayscale(c_image)
-
-# Define a kernel size and apply Gaussian Smoothing
-kernel_size = 5
-blur_gray = gaussian_blur(gray_image, kernel_size)
-
-# Apply Canny algorithm
-canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
-
-# Create a masked edges
-# Define a four sided polygon to mask
-#      _____
-#     /     \
-#    /       \
-#   /         \
-#  /           \
-# /_____________\
-#
-imshape = image.shape
-# Define vertices coordinates
-ver_1_x = int((imshape[1] / 14))
-ver_1_y = int(imshape[0])
-ver_2_x = int((imshape[1] / 2) - (imshape[1] / 8))
-ver_2_y = int((imshape[0] * 5) / 8)
-ver_3_x = int((imshape[1] / 2) + (imshape[1] / 8))
-ver_3_y = int(ver_2_y)
-ver_4_x = int(imshape[1] - (imshape[1] / 14))
-ver_4_y = int(imshape[0])
-
-# Define the center line x coordinate used for separate right lines from left lines
-# In this case it is placed in the center of the polygon
-center_line_coord = ver_2_x + ((ver_3_x - ver_2_x) / 2)
+    # Make a copy of the original image in order to not modify it
+    lane_image =  np.copy(image)
     
-vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y), (ver_4_x, ver_4_y)]], dtype=np.int32)
-masked_edges = region_of_interest(canny_image, vertices)
-
-# Identify the lines in the image through Hough Transform algorithm
-# Output lines is an array containing endpoints of detected line segments
-lines = hough_lines(masked_edges, ρ, θ, threshold, min_line_lenght, max_line_gap)
-
-# Instead of showing all the lines in the right and left side
-# it is better to show just an average of the lines
-average_lines = average_side_lines(lane_image, lines, ver_2_y, center_line_coord)
-
-# Get a image with the detected lines
-line_image = draw_lines(lane_image, average_lines)
-
-# Draw the lines on the original image
-combo_image = weighted_img(line_image, lane_image)
-
-#cv2.imshow('result', canny_image)
-plt.imshow(combo_image)
-#plt.imshow(masked_edges, cmap='gray')
+    # Apply gamma correction to the image to improve the image quality
+    c_image = gamma_correction(lane_image, 2)
+    
+    # Apply the gray scale conversion at the image
+    gray_image = grayscale(c_image)
+    
+    # Define a kernel size and apply Gaussian Smoothing
+    kernel_size = 5
+    blur_gray = gaussian_blur(gray_image, kernel_size)
+    
+    # Apply Canny algorithm
+    canny_image = canny(blur_gray, canny_low_threshold, canny_high_threshold)
+    
+    # Create a masked edges
+    # Define a four sided polygon to mask
+    #      _____
+    #     /     \
+    #    /       \
+    #   /         \
+    #  /           \
+    # /_____________\
+    #
+    imshape = image.shape
+    # Define vertices coordinates
+    ver_1_x = int((imshape[1] / 14))
+    ver_1_y = int(imshape[0])
+    ver_2_x = int((imshape[1] / 2) - (imshape[1] / 8))
+    ver_2_y = int((imshape[0] * 5) / 8)
+    ver_3_x = int((imshape[1] / 2) + (imshape[1] / 8))
+    ver_3_y = int(ver_2_y)
+    ver_4_x = int(imshape[1] - (imshape[1] / 14))
+    ver_4_y = int(imshape[0])
+    
+    # Define the center line x coordinate used for separate right lines from left lines
+    # In this case it is placed in the center of the polygon
+    center_line_coord = ver_2_x + ((ver_3_x - ver_2_x) / 2)
+        
+    vertices = np.array([[(ver_1_x, ver_1_y), (ver_2_x, ver_2_y), (ver_3_x, ver_3_y), (ver_4_x, ver_4_y)]], dtype=np.int32)
+    masked_edges = region_of_interest(canny_image, vertices)
+    
+    # Identify the lines in the image through Hough Transform algorithm
+    # Output lines is an array containing endpoints of detected line segments
+    lines = hough_lines(masked_edges, ρ, θ, threshold, min_line_lenght, max_line_gap)
+    
+    # Instead of showing all the lines in the right and left side
+    # it is better to show just an average of the lines
+    average_lines = average_side_lines(lane_image, lines, ver_2_y, center_line_coord)
+    
+    # Get a image with the detected lines
+    line_image = draw_lines(lane_image, average_lines)
+    
+    # Draw the lines on the original image
+    combo_image = weighted_img(line_image, lane_image)
+    
+    plt.imshow(combo_image)
+    plt.savefig(output_dir + "out_" + test_image.split('/')[1])
+    
+list_images = os.listdir(test_image_dir)
+for image in list_images:
+    lane_recognition(test_image_dir + image, test_image_output)
