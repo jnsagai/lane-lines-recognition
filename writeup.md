@@ -28,14 +28,6 @@ The goals / steps of this project are the following:
 
 ### 1. Describe your pipeline. As part of the description, explain how you modified the draw_lines() function.
 
-My pipeline consisted of 5 steps. First, I converted the images to grayscale, then I .... 
-
-In order to draw a single line on the left and right lanes, I modified the draw_lines() function by ...
-
-If you'd like to include images to show how the pipeline works, here is how to include an image: 
-
-![alt text][original_image]
-
 My pipeline consisted of 10 steps:
 1. I read the original image a create a safety copy of it. An example of an original image with the lane lines follows below:
 ![alt text][original_image]
