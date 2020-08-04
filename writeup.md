@@ -57,7 +57,7 @@ My pipeline consisted of 9 steps:
 
 ![alt text][lines_image]
 
-8. Now we have several detected lines on the right and left lanes. However its more useful if we'd have just one single line on each side that represents the lane, also in terms of further processing (keep the car into the lanes). I accomplish that by modifying the draw_lines() function where I first identified and grouped the lines of each side (base on the slope of the line) and then calculated the average of the line parameters (slope and intercept) in order to create a single line. The first point of this new line is defined using the origin of the first line in the group and the second point using the limit of our region of interest (See Step 6).
+8. Now we have several detected lines on the right and left lanes. However it would be more useful if we had just one single line on each side that represents the lane, also in terms of further processing (keep the car into the lanes). I accomplish that by modifying the draw_lines() function where I first identified and grouped the lines of each side (base on the slope of the line) and then calculated the average of the line parameters (slope and intercept) in order to create a single line. The first point of this new line is defined using the origin of the first line in the group and the second point using the limit of our region of interest (See Step 6).
 
 ![alt text][line_image]
 
