@@ -177,7 +177,6 @@ def average_side_lines(img, lines, top_coord_line, center_line):
         intercept = parameters[1]
         # Check whether it is a right side or left side line and store it
         # in the right list
-        print(slope)
         if (slope >= left_min_slope and slope <= left_max_slope) and (x1 < center_line and x2 < center_line):
             left_avg_line.append((slope, intercept))
         elif (slope >= right_min_slope and slope <= right_max_slope) and (x1 > center_line and x2 > center_line):
