@@ -7,6 +7,7 @@ Created on Sat Aug  1 22:00:29 2020
 # Importing some useful packages
 import numpy as np
 import cv2
+import os
 
 # Import everything needed to edit/save/watch video clips
 from moviepy.editor import VideoFileClip
@@ -16,15 +17,9 @@ from IPython.display import HTML
 #########################   GLOBAL PARAMETERS    #############################
 ##############################################################################
 
-# Test Videos
-test_video_input_challenge = 'test_videos/challenge.mp4'
-test_video_input_solid_white = 'test_videos/solidWhiteRight.mp4'
-test_video_input_solid_yellow = 'test_videos/solidYellowLeft.mp4'
-
-# Video Output
-video_output_challenge = 'test_videos_output/challenge.mp4'
-video_output_solid_white = 'test_videos_output/solidWhiteRight.mp4'
-video_output_solid_yellow = 'test_videos_output/solidYellowLeft.mp4'
+# Video directories
+test_video_dir = 'test_videos/'
+test_video_output = 'test_videos_output/'
 
 # Canny parameters
 canny_low_threshold = 50
@@ -301,14 +296,8 @@ def process_image(image):
     
     return combo_image
 
-clip1 = VideoFileClip(test_video_input_challenge)
-white_clip = clip1.fl_image(process_image)
-white_clip.write_videofile(video_output_challenge, audio=False)
-
-clip1 = VideoFileClip(test_video_input_solid_white)
-white_clip = clip1.fl_image(process_image)
-white_clip.write_videofile(video_output_solid_white, audio=False)
-
-clip1 = VideoFileClip(test_video_input_solid_yellow)
-white_clip = clip1.fl_image(process_image)
-white_clip.write_videofile(video_output_solid_yellow, audio=False)
+list_videos = os.listdir(test_video_dir)
+for video in list_videos: 
+    clip1 = VideoFileClip(test_video_dir + video)
+    white_clip = clip1.fl_image(process_image)
+    white_clip.write_videofile(test_video_output + video, audio=False)
